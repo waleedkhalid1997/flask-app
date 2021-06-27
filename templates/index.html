@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Demo | Flask App | File Upload | Wwebsolutions</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <link rel="apple-touch-icon" type="image/png" href="assets/images/logo.png" /> <meta name="apple-mobile-web-app-title" content="Wwebsolutions">
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/logo.png" />
+    <link rel="mask-icon" type="" href="assets/images/logo.png" color="#111" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+    <link rel='stylesheet' href='assets/css/style.css'>
+    <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Lato'>
+    <script>
+        window.console = window.console || function (t) {};
+    </script>
+    <script>
+        if (document.location.search.match(/type=embed/gi)) {
+            window.parent.postMessage("resize", "*");
+        }
+    </script>
+</head>
+<body translate="no" class="bg-dark pt-5">
+    <div class="container">
+        {% if error  %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        {% if success == True %}
+            <div class="alert alert-success">Image Uploaded Successfully!</div>
+            <div class="row">
+                <div class="col-md-2 form-group"></div>
+                <div class="col-md-4 form-group" style="width:200px; object-fit: contain;">
+                    <img src="assets/uploads/{{beforeimage}}" style=" width: 50%; object-fit: cover; ">
+                </div>
+                <div class="col-md-4 form-group" style="width:200px; object-fit: contain;">
+                    <img src="assets/uploads/{{image}}" style=" width: 50%; object-fit: cover; ">
+                </div>
+                <div class="col-md-2 form-group"></div>
+            </div>
+            <script>
+                setTimeout(() => {alert('Bawa ji Wich hai!')}, 3000);</script>
+        {% endif %}
+    </div>
+
+    <div class="container p-5" id="container">
+        <form method="post" enctype="multipart/form-data" action="/upload">
+            <div class="box-input">
+                <input type="file" name="files" id="file" required>
+                <label for="file"><strong>Choose a file</strong></label>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </div>
+        </form>
+
+    </div>
+    <script src='https://code.jquery.com/jquery-2.2.4.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js'></script>
+
+
+
+</body>
+
+</html>
