@@ -301,7 +301,7 @@ def removeBack3(image) :
     # Add the masked foreground and background.
     cutout = cv2.add(foreground, background)
     cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], 'trans_'+image), cutout)
-    return image
+    return 'trans_'+image
     
 def randomString(length):
     letters = string.ascii_lowercase
