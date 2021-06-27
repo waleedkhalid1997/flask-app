@@ -300,7 +300,7 @@ def removeBack3(image) :
     background = cv2.multiply(1.0 - alpha, background)
     # Add the masked foreground and background.
     cutout = cv2.add(foreground, background)
-    cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], image), cutout)
+    cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], 'trans_'+image), cutout)
     return image
     
 def randomString(length):
