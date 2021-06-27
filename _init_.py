@@ -42,8 +42,7 @@ def upload():
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             file_trans = removeImageBackground(filename)
-            file_trans2 = removeImageBackgroud2(filename)
-            return render_template("index.html", beforeimage=filename, image=file_trans, image2=file_trans2, success=True)
+            return render_template("index.html", beforeimage=filename, image=file_trans, success=True)
     
     return render_template("index.html", error="No upload file found!")
 
