@@ -3,6 +3,13 @@ import os
 from werkzeug.utils import secure_filename
 import cv2
 import numpy as np
+import string
+import random
+from os import listdir
+from os.path import isfile, join, splitext
+import time
+import sys
+import argparse
 # set the project root directory as the static folder, you can set others.
 
 app = Flask(__name__, static_url_path='')
@@ -41,7 +48,8 @@ def upload():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            file_trans = removeImageBackground(filename)
+            # file_trans = removeImageBackground(filename)
+            file_trans = removeBack3(filename)
             return render_template("index.html", beforeimage=filename, image=file_trans, success=True)
     
     return render_template("index.html", error="No upload file found!")
@@ -100,6 +108,205 @@ def removeImageBackgroud2(image) :
     cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], 'trans2_'+image), dst)
     return 'trans2_'+image
     
+def processImage(fileName):
+    # Load in the image using the typical imread function using our watch_folder path, and the fileName passed in, then set the final output image to our current image for now
+    image = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], fileName))
+    output = image
+    # Set thresholds. Here, we are using the Hue, Saturation, Value color space model. We will be using these values to decide what values to show in the ranges using a minimum and maximum value. THESE VALUES CAN BE PLAYED AROUND FOR DIFFERENT COLORS
+    hMin = 29  # Hue minimum
+    sMin = 30  # Saturation minimum
+    vMin = 0   # Value minimum (Also referred to as brightness)
+    hMax = 179 # Hue maximum
+    sMax = 255 # Saturation maximum
+    vMax = 255 # Value maximum
+    # Set the minimum and max HSV values to display in the output image using numpys' array function. We need the numpy array since OpenCVs' inRange function will use those.
+    lower = np.array([hMin, sMin, vMin])
+    upper = np.array([hMax, sMax, vMax])
+    # Create HSV Image and threshold it into the proper range.
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) # Converting color space from BGR to HSV
+    mask = cv2.inRange(hsv, lower, upper) # Create a mask based on the lower and upper range, using the new HSV image
+    # Create the output image, using the mask created above. This will perform the removal of all unneeded colors, but will keep a black background.
+    output = cv2.bitwise_and(image, image, mask=mask)
+    # Add an alpha channel, and update the output image variable
+    *_, alpha = cv2.split(output)
+    dst = cv2.merge((output, alpha))
+    output = dst
+    # Resize the image to 512, 512 (This can be put into a variable for more flexibility), and update the output image variable.
+    dim = (512, 512)
+    output = cv2.resize(output, dim)
+    # Generate a random file name using a mini helper function called randomString to write the image data to, and then save it in the processed_folder path, using the generated filename.
+    file_name = randomString(5) + '.png'
+    cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], file_name), output)
+    return file_name
+
+def removeBack2(image) :
+    image_vec = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], image), 1)
+    g_blurred = cv2.GaussianBlur(image_vec, (5, 5), 0)
+    blurred_float = g_blurred.astype(np.float32) / 255.0
+    edgeDetector = cv2.ximgproc.createStructuredEdgeDetection("model.yml")
+    edges = edgeDetector.detectEdges(blurred_float) * 255.0
+    edges_ = np.asarray(edges, np.uint8)
+    SaltPepperNoise(edges_)
+    contour = findSignificantContour(edges_u)
+    # Draw the contour on the original image
+    contourImg = np.copy(src)
+    cv2.drawContours(contourImg, [contour], 0, (0, 255, 0), 2, cv2.LINE_AA, maxLevel=1)
+    mask = np.zeros_like(edges_u)
+    cv2.fillPoly(mask, [contour], 255)
+    # calculate sure foreground area by dilating the mask
+    mapFg = cv2.erode(mask, np.ones((5, 5), np.uint8), iterations=10)
+    # mark inital mask as "probably background"
+    # and mapFg as sure foreground
+    trimap = np.copy(mask)
+    trimap[mask == 0] = cv2.GC_BGD
+    trimap[mask == 255] = cv2.GC_PR_BGD
+    trimap[mapFg == 255] = cv2.GC_FGD
+    # visualize trimap
+    trimap_print = np.copy(trimap)
+    trimap_print[trimap_print == cv2.GC_PR_BGD] = 128
+    trimap_print[trimap_print == cv2.GC_FGD] = 255
+    cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], image), trimap_print)
+    return image
+    
+    def findSignificantContour(edgeImg):
+        image, contours, hierarchy = cv2.findContours(
+            edgeImg,
+            cv2.RETR_TREE,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+        # Find level 1 contours
+        level1Meta = []
+        for contourIndex, tupl in enumerate(hierarchy[0]):
+            # Filter the ones without parent
+            if tupl[3] == -1:
+                tupl = np.insert(tupl.copy(), 0, [contourIndex])
+                level1Meta.append(tupl)
+        # From among them, find the contours with large surface area.
+        contoursWithArea = []
+        for tupl in level1Meta:
+            contourIndex = tupl[0]
+            contour = contours[contourIndex]
+            area = cv2.contourArea(contour)
+            contoursWithArea.append([contour, area, contourIndex])
+        contoursWithArea.sort(key=lambda meta: meta[1], reverse=True)
+        largestContour = contoursWithArea[0][0]
+        return largestContour
+
+def SaltPepperNoise(edgeImg):
+    count = 0
+    lastMedian = edgeImg
+    median = cv2.medianBlur(edgeImg, 3)
+    while not np.array_equal(lastMedian, median):
+        zeroed = np.invert(np.logical_and(median, edgeImg))
+        edgeImg[zeroed] = 0
+        count = count + 1
+        if count > 70:
+            break
+        lastMedian = median
+        median = cv2.medianBlur(edgeImg, 3)
+        
+def filterOutSaltPepperNoise(edgeImg):
+    # Get rid of salt & pepper noise.
+    count = 0
+    lastMedian = edgeImg
+    median = cv2.medianBlur(edgeImg, 3)
+    while not np.array_equal(lastMedian, median):
+        # get those pixels that gets zeroed out
+        zeroed = np.invert(np.logical_and(median, edgeImg))
+        edgeImg[zeroed] = 0
+
+        count = count + 1
+        if count > 50:
+            break
+        lastMedian = median
+        median = cv2.medianBlur(edgeImg, 3)
+        
+def findLargestContour(edgeImg):
+    contours, hierarchy = cv2.findContours(
+        edgeImg,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+    # From among them, find the contours with large surface area.
+    contoursWithArea = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        contoursWithArea.append([contour, area])
+		
+    contoursWithArea.sort(key=lambda tupl: tupl[1], reverse=True)
+    largestContour = contoursWithArea[0][0]
+    return largestContour
+    
+def removeBack3(image) :
+    src = cv2.imread(os.path.join(app.config['UPLOAD_FOLDER'], image), 1)
+    blurred = cv2.GaussianBlur(src, (5, 5), 0)
+    blurred_float = blurred.astype(np.float32) / 255.0
+    edgeDetector = cv2.ximgproc.createStructuredEdgeDetection("model.yml")
+    edges = edgeDetector.detectEdges(blurred_float) * 255.0
+    edges_8u = np.asarray(edges, np.uint8)
+    filterOutSaltPepperNoise(edges_8u)
+    contour = findLargestContour(edges_8u)
+    # Draw the contour on the original image
+    contourImg = np.copy(src)
+    cv2.drawContours(contourImg, [contour], 0, (0, 255, 0), 2, cv2.LINE_AA, maxLevel=1)
+    mask = np.zeros_like(edges_8u)
+    cv2.fillPoly(mask, [contour], 255)
+
+    # calculate sure foreground area by dilating the mask
+    mapFg = cv2.erode(mask, np.ones((5, 5), np.uint8), iterations=10)
+
+    # mark inital mask as "probably background"
+    # and mapFg as sure foreground
+    trimap = np.copy(mask)
+    trimap[mask == 0] = cv2.GC_BGD
+    trimap[mask == 255] = cv2.GC_PR_BGD
+    trimap[mapFg == 255] = cv2.GC_FGD
+
+    # visualize trimap
+    trimap_print = np.copy(trimap)
+    trimap_print[trimap_print == cv2.GC_PR_BGD] = 128
+    trimap_print[trimap_print == cv2.GC_FGD] = 255
+    # run grabcut
+    bgdModel = np.zeros((1, 65), np.float64)
+    fgdModel = np.zeros((1, 65), np.float64)
+    rect = (0, 0, mask.shape[0] - 1, mask.shape[1] - 1)
+    cv2.grabCut(src, trimap, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_MASK)
+
+    # create mask again
+    mask2 = np.where(
+        (trimap == cv2.GC_FGD) | (trimap == cv2.GC_PR_FGD),
+        255,
+        0
+    ).astype('uint8')
+    contour2 = findLargestContour(mask2)
+    mask3 = np.zeros_like(mask2)
+    cv2.fillPoly(mask3, [contour2], 255)
+    # blended alpha cut-out
+    mask3 = np.repeat(mask3[:, :, np.newaxis], 3, axis=2)
+    mask4 = cv2.GaussianBlur(mask3, (3, 3), 0)
+    alpha = mask4.astype(float) * 1.1  # making blend stronger
+    alpha[mask3 > 0] = 255.0
+    alpha[alpha > 255] = 255.0
+
+    foreground = np.copy(src).astype(float)
+    foreground[mask4 == 0] = 0
+    background = np.ones_like(foreground, dtype=float) * 255.0
+    
+    # Normalize the alpha mask to keep intensity between 0 and 1
+    alpha = alpha / 255.0
+    # Multiply the foreground with the alpha matte
+    foreground = cv2.multiply(alpha, foreground)
+    # Multiply the background with ( 1 - alpha )
+    background = cv2.multiply(1.0 - alpha, background)
+    # Add the masked foreground and background.
+    cutout = cv2.add(foreground, background)
+    cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], image), cutout)
+    return image
+    
+def randomString(length):
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(length))
+
 if __name__ == "__main__":
     app.debug = True
     app.run()
