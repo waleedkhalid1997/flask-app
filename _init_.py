@@ -31,7 +31,7 @@ def upload():
         # check if the post request has the file part
         if 'files' not in request.files:
             print('No file part')
-            return render_template("index.html", error="No upload file found!")
+            return render_template("index.html", error="only png, jpg, jpeg images are allowed!")
         file = request.files['files']
         # if user does not select file, browser also
         # submit a empty part without filename
