@@ -42,7 +42,8 @@ def upload():
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             file_trans = removeImageBackground(filename)
-            return render_template("index.html", beforeimage=filename, image=file_trans, success=True)
+            file_trans2 = removeImageBackgroud2(filename)
+            return render_template("index.html", beforeimage=filename, image=file_trans, image2=file_trans2, success=True)
     
     return render_template("index.html", error="No upload file found!")
 
@@ -79,6 +80,26 @@ def removeImageBackground(image) :
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     return 'trans_'+image
+    
+def removeImageBackgroud2(image) :
+    img= os.path.join(app.config['UPLOAD_FOLDER'], image);
+    ## (1) Convert to gray, and threshold
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    th, threshed = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
+
+    ## (2) Morph-op to remove noise
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11,11))
+    morphed = cv2.morphologyEx(threshed, cv2.MORPH_CLOSE, kernel)
+
+    ## (3) Find the max-area contour
+    cnts = cv2.findContours(morphed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+    cnt = sorted(cnts, key=cv2.contourArea)[-1]
+
+    ## (4) Crop and save it
+    x,y,w,h = cv2.boundingRect(cnt)
+    dst = img[y:y+h, x:x+w]
+    cv2.imwrite(os.path.join(app.config['UPLOAD_FOLDER'], 'trans2_'+image), dst)
+    return 'trans2_'+image
     
 if __name__ == "__main__":
     app.debug = True
