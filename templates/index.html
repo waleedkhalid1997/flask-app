@@ -25,7 +25,7 @@
 </head>
 <body translate="no" class="bg-dark pt-5">
     <div class="container">
-        <div class="row"><div class="col-md-12 text-center"><h1>Remove Image Background (Python Django)</h1></div></div>
+        <div class="row"><div class="col-md-12 text-center text-light"><h1>Remove Image Background (Python Django)</h1></div></div>
         {% if error  %}
             <div class="alert alert-danger">{{ error }}</div>
         {% endif %}
@@ -33,11 +33,11 @@
             <div class="alert alert-success">Image Uploaded Successfully!</div>
             <div class="row">
                 <div class="col-md-2 form-group"></div>
-                <div class="col-md-4 form-group">
+                <div class="col-md-4 form-group text-center text-light">
                     <h2>BEFORE</h2>
                     <img src="assets/uploads/{{beforeimage}}" style="width: 100%;object-fit: contain;height: 400px;">
                 </div>
-                <div class="col-md-4 form-group">
+                <div class="col-md-4 form-group text-center text-light">
                     <h2>AFTER</h2>
                     <img src="assets/uploads/{{image}}" style="width: 100%;object-fit: contain;height: 400px;">
                 </div>
